@@ -3,6 +3,8 @@
 #include <string.h>
 #include "server.h"
 
+#define SETS_PORT 2345
+
 int main(int argc, char *argv[]) {
     int port = SETS_PORT;
     int verbose = 0;

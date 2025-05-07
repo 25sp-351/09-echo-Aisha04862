@@ -7,6 +7,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#define BUFFER_SIZE 1024
+
 typedef struct {
     int socket;
     int verbose;
@@ -16,26 +18,17 @@ typedef struct {
 void *handle_client(void *arg) {
     client_info *info = (client_info *)arg;
     char buffer[BUFFER_SIZE];
-    FILE *fp = fdopen(info->socket, "r+");
-
-    if (fp == NULL) {
-        perror("fdopen");
-        close(info->socket);
-        free(info);
-        pthread_exit(NULL);
-    }
 
     if (info->verbose) {
         printf("Connected: %s:%d\n",
                inet_ntoa(info->addr.sin_addr), ntohs(info->addr.sin_port));
     }
 
-    while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-        fputs(buffer, fp);     // echo back to the client
-        fflush(fp);            
-
+    ssize_t bytes_read;
+    while ((bytes_read = read(info->socket, buffer, sizeof(buffer))) > 0) {
+        write(info->socket, buffer, bytes_read);
         if (info->verbose) {
-            printf("Received: %s", buffer);  // print result to terminal
+            fwrite(buffer, 1, bytes_read, stdout);
         }
     }
 
@@ -44,10 +37,9 @@ void *handle_client(void *arg) {
                inet_ntoa(info->addr.sin_addr), ntohs(info->addr.sin_port));
     }
 
-    fclose(fp);
     close(info->socket);
     free(info);
-    pthread_exit(NULL);
+    return NULL;
 }
 
 void start_server(int port, int verbose) {
@@ -75,7 +67,7 @@ void start_server(int port, int verbose) {
         exit(EXIT_FAILURE);
     }
 
-    printf("Echo server listening on port %d\n", port);
+    printf("Echo server listening oy port %d\n", port);
 
     while (1) {
         client_info *info = malloc(sizeof(client_info));
@@ -102,7 +94,7 @@ void start_server(int port, int verbose) {
             continue;
         }
 
-        pthread_detach(tid); 
+        pthread_detach(tid);
     }
 
     close(server_fd);
